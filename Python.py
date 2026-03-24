@@ -1,4 +1,4 @@
-import os
+ import os
 import sqlite3
 import logging
 from datetime import datetime
@@ -14,20 +14,13 @@ from telegram.ext import (
 )
 
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
-logger = logging.getLogger(__name__)
 
-TOKEN = os.getenv("8701716618:AAFgWkQhqgnhV8xH1YfgMk0Jyw6d33co0iU")
-PORT = int(os.getenv("PORT", "10000"))
+TOKEN = "8701716618:AAFgWkQhqgnhV8xH1YfgMk0Jyw6d33co0iU"
 RENDER_EXTERNAL_URL = "https://workout-bot-sa2d.onrender.com"
-
-if not TOKEN:
-    raise ValueError("Не найдена переменная BOT_TOKEN")
-
-if not RENDER_EXTERNAL_URL:
-    raise ValueError("Не найдена переменная RENDER_EXTERNAL_URL")
+PORT = int(os.environ.get("PORT", "10000"))
 
 DB_NAME = "workout_bot.db"
 
@@ -76,7 +69,6 @@ WORKOUTS = {
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-
     cur.execute("""
         CREATE TABLE IF NOT EXISTS workout_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,7 +80,6 @@ def init_db():
             created_at TEXT NOT NULL
         )
     """)
-
     conn.commit()
     conn.close()
 
@@ -96,7 +87,6 @@ def init_db():
 def save_weight(user_id: int, username: str, day_name: str, exercise_name: str, weight: str):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-
     cur.execute("""
         INSERT INTO workout_logs (user_id, username, day_name, exercise_name, weight, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -108,7 +98,6 @@ def save_weight(user_id: int, username: str, day_name: str, exercise_name: str, 
         weight,
         datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ))
-
     conn.commit()
     conn.close()
 
@@ -116,14 +105,12 @@ def save_weight(user_id: int, username: str, day_name: str, exercise_name: str, 
 def get_last_weights_for_day(user_id: int, day_name: str):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-
     cur.execute("""
         SELECT exercise_name, weight, created_at
         FROM workout_logs
         WHERE user_id = ? AND day_name = ?
         ORDER BY id DESC
     """, (user_id, day_name))
-
     rows = cur.fetchall()
     conn.close()
 
@@ -138,60 +125,62 @@ def get_last_weights_for_day(user_id: int, day_name: str):
 def get_history_for_exercise(user_id: int, day_name: str, exercise_name: str):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-
     cur.execute("""
         SELECT weight, created_at
         FROM workout_logs
         WHERE user_id = ? AND day_name = ? AND exercise_name = ?
         ORDER BY id DESC
     """, (user_id, day_name, exercise_name))
-
     rows = cur.fetchall()
     conn.close()
     return rows
 
 
 def get_main_menu_keyboard():
-    keyboard = [
-        ["Старт тренировки", "Отслежение весов"],
-        ["Помощь", "Отмена"],
-    ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    return ReplyKeyboardMarkup(
+        [
+            ["Старт тренировки", "Отслежение весов"],
+            ["Помощь", "Отмена"],
+        ],
+        resize_keyboard=True
+    )
 
 
 def get_days_keyboard():
-    keyboard = [
-        ["Грудь - Трицепс"],
-        ["Спина - Бицепс"],
-        ["Плечи - Ноги"],
-        ["Назад", "Отмена"],
-    ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    return ReplyKeyboardMarkup(
+        [
+            ["Грудь - Трицепс"],
+            ["Спина - Бицепс"],
+            ["Плечи - Ноги"],
+            ["Назад", "Отмена"],
+        ],
+        resize_keyboard=True
+    )
 
 
 def get_exercises_keyboard(day_name: str):
-    exercises = WORKOUTS[day_name]
-    keyboard = [[exercise] for exercise in exercises]
+    keyboard = [[exercise] for exercise in WORKOUTS[day_name]]
     keyboard.append(["Назад", "Отмена"])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = "Добро пожаловать в трекер тренировок.\n\nЧто хочешь сделать?"
-    await update.message.reply_text(text, reply_markup=get_main_menu_keyboard())
+    await update.message.reply_text(
+        "Добро пожаловать в трекер тренировок.\n\nЧто хочешь сделать?",
+        reply_markup=get_main_menu_keyboard()
+    )
     return MAIN_MENU
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "Как пользоваться ботом:\n\n"
+    await update.message.reply_text(
         "1. Нажми 'Старт тренировки'\n"
-        "2. Выбери день тренировки\n"
+        "2. Выбери день\n"
         "3. Выбери упражнение\n"
-        "4. Введи рабочий вес сообщением\n\n"
-        "Чтобы смотреть старые веса, нажми 'Отслежение весов'."
+        "4. Введи вес\n\n"
+        "Чтобы смотреть старые веса, нажми 'Отслежение весов'.",
+        reply_markup=get_main_menu_keyboard()
     )
-    await update.message.reply_text(text, reply_markup=get_main_menu_keyboard())
     return MAIN_MENU
 
 
@@ -202,22 +191,18 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Выбери день тренировки:", reply_markup=get_days_keyboard())
         return SELECT_DAY
 
-    elif text == "Отслежение весов":
-        await update.message.reply_text(
-            "Выбери день, по которому хочешь посмотреть веса:",
-            reply_markup=get_days_keyboard()
-        )
+    if text == "Отслежение весов":
+        await update.message.reply_text("Выбери день:", reply_markup=get_days_keyboard())
         return TRACK_DAY
 
-    elif text == "Помощь":
+    if text == "Помощь":
         return await help_command(update, context)
 
-    elif text == "Отмена":
+    if text == "Отмена":
         return await cancel(update, context)
 
-    else:
-        await update.message.reply_text("Выбери кнопку из меню.", reply_markup=get_main_menu_keyboard())
-        return MAIN_MENU
+    await update.message.reply_text("Выбери кнопку из меню.", reply_markup=get_main_menu_keyboard())
+    return MAIN_MENU
 
 
 async def select_day(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -235,7 +220,6 @@ async def select_day(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return SELECT_DAY
 
     context.user_data["selected_day"] = day_name
-
     await update.message.reply_text(
         f"Выбран день: {day_name}\n\nТеперь выбери упражнение:",
         reply_markup=get_exercises_keyboard(day_name)
@@ -248,7 +232,7 @@ async def select_exercise(update: Update, context: ContextTypes.DEFAULT_TYPE):
     day_name = context.user_data.get("selected_day")
 
     if exercise_name == "Назад":
-        await update.message.reply_text("Выбери день тренировки:", reply_markup=get_days_keyboard())
+        await update.message.reply_text("Выбери день:", reply_markup=get_days_keyboard())
         return SELECT_DAY
 
     if exercise_name == "Отмена":
@@ -262,15 +246,12 @@ async def select_exercise(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     history = get_history_for_exercise(update.effective_user.id, day_name, exercise_name)
     last_info = ""
-
     if history:
         last_weight, last_date = history[0]
-        last_info = f"\nПоследний записанный вес: {last_weight} ({last_date})"
+        last_info = f"\nПоследний вес: {last_weight} ({last_date})"
 
     await update.message.reply_text(
-        f"Упражнение: {exercise_name}{last_info}\n\n"
-        "Теперь введи рабочий вес сообщением.\n"
-        "Например: 60 кг или 3x10 по 50",
+        f"Упражнение: {exercise_name}{last_info}\n\nВведи рабочий вес сообщением.",
         reply_markup=ReplyKeyboardMarkup([["Назад", "Отмена"]], resize_keyboard=True)
     )
     return ENTER_WEIGHT
@@ -290,10 +271,6 @@ async def enter_weight(update: Update, context: ContextTypes.DEFAULT_TYPE):
     day_name = context.user_data.get("selected_day")
     exercise_name = context.user_data.get("selected_exercise")
 
-    if not day_name or not exercise_name:
-        await update.message.reply_text("Что-то сбилось. Вернись в главное меню.", reply_markup=get_main_menu_keyboard())
-        return MAIN_MENU
-
     save_weight(
         user_id=update.effective_user.id,
         username=update.effective_user.username or "",
@@ -303,11 +280,7 @@ async def enter_weight(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     await update.message.reply_text(
-        f"Сохранено:\n"
-        f"День: {day_name}\n"
-        f"Упражнение: {exercise_name}\n"
-        f"Вес: {text}\n\n"
-        f"Можешь выбрать следующее упражнение.",
+        f"Сохранено:\nДень: {day_name}\nУпражнение: {exercise_name}\nВес: {text}",
         reply_markup=get_exercises_keyboard(day_name)
     )
     return SELECT_EXERCISE
@@ -328,13 +301,11 @@ async def track_day(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return TRACK_DAY
 
     context.user_data["track_day"] = day_name
-
     latest = get_last_weights_for_day(update.effective_user.id, day_name)
 
     if not latest:
         await update.message.reply_text(
-            f"По дню '{day_name}' пока нет сохраненных весов.\n\n"
-            "Выбери упражнение, если хочешь посмотреть историю, или вернись назад.",
+            f"По дню '{day_name}' пока нет записей.",
             reply_markup=get_exercises_keyboard(day_name)
         )
         return TRACK_EXERCISE
@@ -347,7 +318,7 @@ async def track_day(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             lines.append(f"• {exercise} — нет записей")
 
-    lines.append("\nТеперь выбери упражнение, чтобы посмотреть полную историю.")
+    lines.append("\nВыбери упражнение, чтобы посмотреть историю.")
     await update.message.reply_text("\n".join(lines), reply_markup=get_exercises_keyboard(day_name))
     return TRACK_EXERCISE
 
@@ -385,7 +356,7 @@ async def track_exercise(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Действие отменено. Ты в главном меню.", reply_markup=get_main_menu_keyboard())
+    await update.message.reply_text("Отменено.", reply_markup=get_main_menu_keyboard())
     return MAIN_MENU
 
 
@@ -414,16 +385,11 @@ def main():
     app.add_handler(conv_handler)
     app.add_handler(CommandHandler("help", help_command))
 
-    webhook_path = TOKEN
-    webhook_url = f"{RENDER_EXTERNAL_URL}/{TOKEN}"
-
-    logger.info(f"Webhook URL: {webhook_url}")
-
     app.run_webhook(
         listen="0.0.0.0",
         port=PORT,
-        url_path=webhook_path,
-        webhook_url=webhook_url,
+        url_path=TOKEN,
+        webhook_url=f"{RENDER_EXTERNAL_URL}/{TOKEN}",
     )
 
 
